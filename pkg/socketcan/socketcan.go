@@ -2,10 +2,12 @@ package socketcan
 
 import (
 	"encoding/binary"
+	"fmt"
 
 	"golang.org/x/sys/unix"
 )
 
+// CANFrame represents a CAN frame.
 type CANFrame struct {
 	ID       uint32
 	DLC      uint8
@@ -13,13 +15,32 @@ type CANFrame struct {
 	Extended bool
 }
 
+func (f *CANFrame) String() string {
+	var s string
+
+	if f.Extended {
+		s += fmt.Sprintf("extended Frame %08x", f.ID)
+	} else {
+		s += fmt.Sprintf("standard Frame %03x", f.ID)
+	}
+
+	s += fmt.Sprintf(" DLC: %d, Data: ", f.DLC)
+	for i, b := range f.Data {
+		if i >= int(f.DLC) {
+			break
+		}
+		s += fmt.Sprintf("%02x", b)
+	}
+	return s
+}
+
+// RawInterface represents a raw CAN interface.
 type RawInterface struct {
 	ifName string
 	socket int
 }
 
-const ()
-
+// NewRawInterface creates a new raw CAN interface.
 func NewRawInterface(interfaceName string) (*RawInterface, error) {
 	socket, err := unix.Socket(unix.AF_CAN, unix.SOCK_RAW, unix.CAN_RAW)
 	if err != nil {
@@ -39,10 +60,12 @@ func NewRawInterface(interfaceName string) (*RawInterface, error) {
 	}, nil
 }
 
+// Close closes the raw CAN interface.
 func (i *RawInterface) Close() error {
 	return unix.Close(i.socket)
 }
 
+// Send sends a CAN frame.
 func (i *RawInterface) Send(f *CANFrame) error {
 	frameBytes := make([]byte, 16)
 	// bytes 0-3: arbitration ID
@@ -64,7 +87,8 @@ func (i *RawInterface) Send(f *CANFrame) error {
 	return err
 }
 
-func (i *RawInterface) Recv() (*CANFrame, error) {
+// Receive receives a CAN frame.
+func (i *RawInterface) Receive() (*CANFrame, error) {
 	f := CANFrame{}
 	frameBytes := make([]byte, 16)
 	_, err := unix.Read(i.socket, frameBytes)
