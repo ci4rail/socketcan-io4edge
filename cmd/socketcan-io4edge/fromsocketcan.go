@@ -41,6 +41,11 @@ func fromSocketCAN(s *socketcan.RawInterface) {
 
 func readFrameQ(frameQ chan *socketcan.CANFrame) []*socketcan.CANFrame {
 	rxFrames := []*socketcan.CANFrame{}
+	// wait for first frame
+	f := <-frameQ
+	rxFrames = append(rxFrames, f)
+
+	// read all other frames, but non-blocking
 	for {
 		select {
 		case f := <-frameQ:

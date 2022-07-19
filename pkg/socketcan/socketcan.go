@@ -15,6 +15,48 @@ type CANFrame struct {
 	Extended bool
 }
 
+// ErrorClass represents athe CAN error class.
+type ErrorClass uint32
+
+// ErrorFrameData0 represents details of arbitration lost error.
+type ErrorFrameData0 uint8
+
+const (
+	// CANErrTxTimeout flags a TX timeout (by netdevice driver)
+	CANErrTxTimeout ErrorClass = 0x00000001
+	// CANErrLostArb flags a lost arbitration, details in ErrorFrameData0
+	CANErrLostArb ErrorClass = 0x00000002
+	// CANErrCtrl flags controller problems
+	CANErrCtrl ErrorClass = 0x00000004
+	// CANErrProt flags protocol violations
+	CANErrProt ErrorClass = 0x00000008
+	// CANErrTrx flags transceiver status
+	CANErrTrx ErrorClass = 0x00000010
+	// CANErrAck flags received no ACK on transmission
+	CANErrAck ErrorClass = 0x00000020
+	// CANErrBusOff flags bus off
+	CANErrBusOff ErrorClass = 0x00000040
+	// CANErrBusError flags bus error
+	CANErrBusError ErrorClass = 0x00000080
+	// CANErrRestarted flags controller restarted
+	CANErrRestarted ErrorClass = 0x00000100
+
+	// CANErrCtrlUnspec flags unspecified
+	CANErrCtrlUnspec ErrorFrameData0 = 0x00
+	// CANErrCtrlRxOverflow flags RX buffer overflow
+	CANErrCtrlRxOverflow ErrorFrameData0 = 0x01
+	// CANErrCtrlTxOverflow flags TX buffer overflow
+	CANErrCtrlTxOverflow ErrorFrameData0 = 0x02
+	// CANErrCtrlRxWarning flags reached warning level for RX errors
+	CANErrCtrlRxWarning ErrorFrameData0 = 0x04
+	// CANErrCtrlTxWarning flags reached warning level for TX errors
+	CANErrCtrlTxWarning ErrorFrameData0 = 0x08
+	// CANErrCtrlRxPassive flags reached error passive status RX
+	CANErrCtrlRxPassive ErrorFrameData0 = 0x10
+	// CANErrCtrlTxPassive flags reached error passive status TX
+	CANErrCtrlTxPassive ErrorFrameData0 = 0x20
+)
+
 func (f *CANFrame) String() string {
 	var s string
 
