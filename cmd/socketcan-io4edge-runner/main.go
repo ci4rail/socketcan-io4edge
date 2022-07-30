@@ -34,7 +34,7 @@ type daemonInfo struct {
 }
 
 var (
-	daemonMap   = make(map[string]*daemonInfo) // key: mdns instance name
+	daemonMap   = make(map[string]*daemonInfo) // key: vcan name
 	programPath string
 )
 
