@@ -63,7 +63,7 @@ func serviceAdded(s client.ServiceInfo) error {
 
 		err := createSocketCanDevice(name)
 		if err != nil {
-			log.Errorf("%v", err)
+			logErr("%v\n", err)
 			return nil
 		}
 		fmt.Printf("start process for instance (%s)\n", name)
@@ -92,7 +92,7 @@ func serviceRemoved(s client.ServiceInfo) error {
 		delInfo(name)
 		deleteSocketCanDevice(name)
 	} else {
-		log.Warnf("instance for %s not in map", name)
+		fmt.Printf("instance for %s not in map\n", name)
 	}
 	return nil
 }
@@ -101,7 +101,7 @@ func main() {
 	var err error
 
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: %s [OPTIONS] <ttynvt-program-path> <driver-major-number>\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Usage: %s [OPTIONS] <socketcan-io4edge-program-path>\n", os.Args[0])
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
@@ -109,7 +109,7 @@ func main() {
 	logLevel := flag.String("loglevel", "info", "loglevel (debug, info, warn, error)")
 	// parse command line arguments
 	flag.Parse()
-	if flag.NArg() != 2 {
+	if flag.NArg() != 1 {
 		flag.Usage()
 	}
 
