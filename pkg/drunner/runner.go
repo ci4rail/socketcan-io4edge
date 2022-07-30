@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"syscall"
 )
 
 // Runner is a runner object.
@@ -59,7 +58,7 @@ func New(id string, executable string, arg ...string) (*Runner, error) {
 
 func (r *Runner) startup() (*io.PipeReader, *io.PipeReader, error) {
 	r.cmd = exec.Command(r.executable, r.args...)
-	r.cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	//r.cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	prStdout, pwStdout := io.Pipe()
 	r.cmd.Stdout = pwStdout
 	prStderr, pwStderr := io.Pipe()
