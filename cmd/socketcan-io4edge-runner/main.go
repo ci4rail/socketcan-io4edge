@@ -26,6 +26,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/ci4rail/io4edge-client-go/client"
+	"github.com/ci4rail/socketcan-io4edge/internal/version"
 	"github.com/ci4rail/socketcan-io4edge/pkg/drunner"
 )
 
@@ -108,8 +109,12 @@ func main() {
 	}
 
 	logLevel := flag.String("loglevel", "info", "loglevel (debug, info, warn, error)")
-	// parse command line arguments
+	showVersion := flag.Bool("version", false, "show version and exit")
 	flag.Parse()
+	if *showVersion {
+		fmt.Printf("%s\n", version.Version)
+		os.Exit(0)
+	}
 	if flag.NArg() != 1 {
 		flag.Usage()
 	}
@@ -156,12 +161,14 @@ func deleteSocketCanDevice(socketCANInstance string) error {
 }
 
 func vcanName(instanceName string) string {
-	s := "vcan-" + instanceName
-	len := len(s)
-	if len > 15 {
-		len = 15
+	// remove "can" from instance name
+	instanceName = strings.Replace(instanceName, "-can", "", 1)
+
+	if len(instanceName) > 10 {
+		instanceName = instanceName[0:3] + ".." + instanceName[len(instanceName)-5:]
 	}
-	return s[:len]
+
+	return "vcan-" + instanceName
 }
 
 func logErr(format string, arg ...any) {

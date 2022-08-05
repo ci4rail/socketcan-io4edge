@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"github.com/ci4rail/io4edge-client-go/canl2"
+	"github.com/ci4rail/socketcan-io4edge/internal/version"
 	"github.com/ci4rail/socketcan-io4edge/pkg/socketcan"
 )
 
@@ -18,8 +19,13 @@ func main() {
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
-
+	showVersion := flag.Bool("version", false, "show version and exit")
 	flag.Parse()
+	if *showVersion {
+		fmt.Printf("%s\n", version.Version)
+		os.Exit(0)
+	}
+
 	if flag.NArg() != 2 {
 		flag.Usage()
 		return
