@@ -3,7 +3,7 @@ module github.com/ci4rail/socketcan-io4edge
 go 1.18
 
 require (
-	github.com/ci4rail/io4edge_api v0.7.1-0.20220720132857-635ce7aa9b31
+	github.com/ci4rail/io4edge_api v0.8.1-0.20220804073705-2de2a1f7fc03
 	github.com/sirupsen/logrus v1.8.1
 	golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8
 )
@@ -15,7 +15,7 @@ require (
 )
 
 require (
-	github.com/ci4rail/io4edge-client-go v1.2.2-0.20220729113357-c9cdc3f86fa8
+	github.com/ci4rail/io4edge-client-go v1.2.2-0.20220804075234-d34e001f0e2d
 	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/godbus/dbus/v5 v5.0.5 // indirect
 	github.com/holoplot/go-avahi v1.0.1 // indirect

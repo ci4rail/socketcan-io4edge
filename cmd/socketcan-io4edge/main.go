@@ -40,7 +40,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create canl2 client: %v\n", err)
 	}
-
+	fmt.Printf("connected to io4edge CAN at %s\n", io4edgeAddress)
 	// start gateway
 	toSocketCAN(socketCAN, io4edgeCANClient)
 	fromSocketCAN(socketCAN, io4edgeCANClient)

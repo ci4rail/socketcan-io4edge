@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 
@@ -41,7 +42,7 @@ var (
 func serviceAdded(s client.ServiceInfo) error {
 	var info *daemonInfo
 
-	fmt.Println("Added service", s.GetInstanceName())
+	fmt.Printf("%s: service added info received from mdns\n", s.GetInstanceName())
 
 	name := vcanName(s.GetInstanceName())
 	ipPort := s.GetIPAddressPort()
@@ -50,11 +51,11 @@ func serviceAdded(s client.ServiceInfo) error {
 	if ok {
 		// instance already exists, check if ip or port changed
 		if info.ipPort == ipPort {
-			fmt.Printf("no change in ip/port for instance %s\n", name)
+			fmt.Printf("%s: no change in ip/port (nothing to do)\n", name)
 			return nil
 		}
 		// ip or port changed, kill old instance and start new one
-		fmt.Printf("ip/port changed for instance %s, %s->%s stop old instance\n", name, info.ipPort, ipPort)
+		fmt.Printf("%s: ip/port changed, %s->%s stop old instance\n", name, info.ipPort, ipPort)
 		info.runner.Stop()
 	} else {
 		// instance does not exist. start new instance
@@ -63,7 +64,7 @@ func serviceAdded(s client.ServiceInfo) error {
 
 		err := createSocketCanDevice(name)
 		if err != nil {
-			logErr("%v\n", err)
+			logErr("%s: %v\n", name, err)
 			return nil
 		}
 		fmt.Printf("start process for instance (%s)\n", name)
@@ -73,7 +74,7 @@ func serviceAdded(s client.ServiceInfo) error {
 	runner, err := drunner.New(name, programPath, s.GetInstanceName(), name)
 
 	if err != nil {
-		logErr("Start %s (%s) failed: %v\n", programPath, name, err)
+		logErr("%s: Start %s failed: %v\n", name, programPath, err)
 		delInfo(name)
 	}
 	info.runner = runner
@@ -83,16 +84,16 @@ func serviceAdded(s client.ServiceInfo) error {
 
 func serviceRemoved(s client.ServiceInfo) error {
 	name := vcanName(s.GetInstanceName())
-	fmt.Println("Removed service", s.GetInstanceName())
+	fmt.Printf("%s: service removed info received from mdns\n", s.GetInstanceName())
 
 	info, ok := daemonMap[name]
 	if ok {
-		fmt.Printf("Stopping instance for %s\n", name)
+		fmt.Printf("%s: Stopping process\n", name)
 		info.runner.Stop()
 		delInfo(name)
 		deleteSocketCanDevice(name)
 	} else {
-		fmt.Printf("instance for %s not in map\n", name)
+		fmt.Printf("%s: instance not known! (ignoring)\n", name)
 	}
 	return nil
 }
@@ -129,22 +130,24 @@ func main() {
 			log.Fatalf("error: %v", err)
 		}
 	}
-	client.ServiceObserver("_io4edge_canl2._tcp", serviceAdded, serviceRemoved)
+	client.ServiceObserver("_io4edge_canL2._tcp", serviceAdded, serviceRemoved)
 }
 
 func createSocketCanDevice(socketCANInstance string) error {
 	cmd := fmt.Sprintf("ip link add dev %s type vcan && ip link set up %s", socketCANInstance, socketCANInstance)
-	fmt.Println(cmd)
+	//fmt.Println(cmd)
 	out, err := exec.Command("sh", "-c", cmd).CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("error creating socketcan instance: %v: %s", err, out)
+		if !strings.Contains(string(out), "File exists") {
+			return fmt.Errorf("error creating socketcan instance: %v: %s", err, out)
+		}
 	}
 	return nil
 }
 
 func deleteSocketCanDevice(socketCANInstance string) error {
 	cmd := fmt.Sprintf("ip link delete %s", socketCANInstance)
-	fmt.Println(cmd)
+	//fmt.Println(cmd)
 	out, err := exec.Command("sh", "-c", cmd).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("error deleting socketcan instance: %v: %s", err, out)
@@ -153,7 +156,12 @@ func deleteSocketCanDevice(socketCANInstance string) error {
 }
 
 func vcanName(instanceName string) string {
-	return "vcan-" + instanceName
+	s := "vcan-" + instanceName
+	len := len(s)
+	if len > 15 {
+		len = 15
+	}
+	return s[:len]
 }
 
 func logErr(format string, arg ...any) {

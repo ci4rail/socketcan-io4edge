@@ -2,20 +2,15 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
-	"time"
 
 	"github.com/ci4rail/io4edge-client-go/canl2"
-	"github.com/ci4rail/io4edge-client-go/functionblock"
 	fspb "github.com/ci4rail/io4edge_api/canL2/go/canL2/v1alpha1"
-	"github.com/ci4rail/io4edge_api/io4edge/go/functionblock/v1alpha1"
 	"github.com/ci4rail/socketcan-io4edge/pkg/socketcan"
 )
 
 const (
-	maxFramesPerIo4EdgeCANSend = 10
-	sendRetryDelay             = 100 * time.Millisecond
+	maxFramesPerIo4EdgeCANSend = 30
 )
 
 func fromSocketCAN(s *socketcan.RawInterface, io4edgeCANClient *canl2.Client) {
@@ -45,25 +40,12 @@ func fromSocketCAN(s *socketcan.RawInterface, io4edgeCANClient *canl2.Client) {
 			for _, f := range rxFrames {
 				io4eFrames = append(io4eFrames, socketCANToIo4EdgeFrame(f))
 			}
-			log.Printf("Sending %d frames to io4edge device", len(io4eFrames))
+			fmt.Printf("Sending %d frames to io4edge device\n", len(io4eFrames))
 
-			var err error
-
-			// try to send frames. Retry forever if device queue is full
-			for {
-				err = io4edgeCANClient.SendFrames(io4eFrames)
-
-				// retry if device's send queue full
-				if err != nil && functionblock.HaveResponseStatus(err, v1alpha1.Status_TEMPORARILY_UNAVAILABLE) {
-					log.Printf("Retry send frames\n")
-					time.Sleep(sendRetryDelay)
-				} else {
-					break
-				}
-			}
-
+			// try to send frames. Ignore errors if the device is not ready, i.e. because is bus off or queue is full
+			err := io4edgeCANClient.SendFrames(io4eFrames)
 			if err != nil {
-				log.Fatalf("Error sending frames to io4edge device: %v\n", err)
+				fmt.Printf("Error sending frames to io4edge device: %v\n", err)
 			}
 		}
 	}()
@@ -75,9 +57,11 @@ func readFrameQ(frameQ chan *socketcan.CANFrame, maxFrames int) []*socketcan.CAN
 	// wait for first frame
 	f := <-frameQ
 	rxFrames = append(rxFrames, f)
-
 	// read all other frames, but non-blocking
-	numFrames := 0
+	numFrames := 1
+	if numFrames >= maxFrames {
+		return rxFrames
+	}
 	for {
 		select {
 		case f := <-frameQ:
@@ -93,10 +77,12 @@ func readFrameQ(frameQ chan *socketcan.CANFrame, maxFrames int) []*socketcan.CAN
 }
 
 func socketCANToIo4EdgeFrame(s *socketcan.CANFrame) *fspb.Frame {
-	return &fspb.Frame{
+	f := &fspb.Frame{
 		MessageId:           s.ID,
-		Data:                s.Data,
 		RemoteFrame:         s.RTR,
 		ExtendedFrameFormat: s.Extended,
 	}
+	f.Data = make([]byte, s.DLC)
+	copy(f.Data, s.Data[0:s.DLC])
+	return f
 }

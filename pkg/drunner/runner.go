@@ -28,7 +28,7 @@ func New(id string, executable string, arg ...string) (*Runner, error) {
 		executable:   executable,
 		args:         arg,
 	}
-	fmt.Printf("starting process for id %s\n", r.id)
+	fmt.Printf("%s: starting process\n", r.id)
 	prStdout, prStderr, err := r.startup()
 	if err != nil {
 		return nil, err
@@ -40,15 +40,15 @@ func New(id string, executable string, arg ...string) (*Runner, error) {
 			// wait for executable to terminate
 			err = r.cmd.Wait()
 			if err != nil {
-				fmt.Printf("process for id %s terminated with error: %v\n", r.id, err)
+				fmt.Printf("%s: process terminated with error: %v\n", r.id, err)
 			}
 			if !r.shallRestart {
 				break
 			}
-			fmt.Printf("restarting process for id %s\n", r.id)
+			fmt.Printf("%s: restarting process\n", r.id)
 			prStdout, prStderr, err = r.startup()
 			if err != nil {
-				fmt.Printf("can't restart process for id %s: %v\n", r.id, err)
+				fmt.Printf("%s: can't restart process: %v\n", r.id, err)
 				break
 			}
 		}
@@ -66,7 +66,7 @@ func (r *Runner) startup() (*io.PipeReader, *io.PipeReader, error) {
 
 	err := r.cmd.Start()
 	if err != nil {
-		return nil, nil, fmt.Errorf("can't start process for id %s: %v", r.id, err)
+		return nil, nil, fmt.Errorf("%s: can't start process: %v", r.id, err)
 	}
 	return prStdout, prStderr, nil
 }
@@ -80,10 +80,10 @@ func (r *Runner) Stop() error {
 	if r.cmd.Process != nil {
 		err := r.cmd.Process.Kill()
 		if err != nil {
-			return fmt.Errorf("can't kill process for id %s: %v", r.id, err)
+			return fmt.Errorf("%s: can't kill process: %v", r.id, err)
 		}
 	} else {
-		return fmt.Errorf("process for id %s is not running", r.id)
+		return fmt.Errorf("%s: process not running", r.id)
 	}
 	return nil
 }

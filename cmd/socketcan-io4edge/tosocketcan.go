@@ -1,7 +1,8 @@
 package main
 
 import (
-	"log"
+	"fmt"
+	"os"
 	"time"
 
 	"github.com/ci4rail/io4edge-client-go/canl2"
@@ -11,7 +12,7 @@ import (
 )
 
 const (
-	bucketSamples     = 200
+	bucketSamples     = 1
 	bufferedSamples   = 400
 	streamKeepAliveMs = 1000
 )
@@ -38,7 +39,8 @@ func toSocketCAN(s *socketcan.RawInterface, io4edgeCANClient *canl2.Client) {
 			canl2.WithFBStreamOption(functionblock.WithKeepaliveInterval(streamKeepAliveMs)),
 		)
 		if err != nil {
-			log.Printf("StartStream failed: %v\n", err)
+			fmt.Printf("StartStream failed: %v\n", err)
+			os.Exit(1)
 		}
 
 		for {
@@ -46,7 +48,8 @@ func toSocketCAN(s *socketcan.RawInterface, io4edgeCANClient *canl2.Client) {
 			sd, err := io4edgeCANClient.ReadStream(time.Millisecond * streamKeepAliveMs * 3)
 			if err != nil {
 				// timeout is a fatal error
-				log.Fatalf("Io4Edge ReadStream failed: %v\n", err)
+				fmt.Printf("Io4Edge ReadStream failed: %v\n", err)
+				os.Exit(1)
 			}
 			frames := sd.FSData.Samples
 			for _, f := range frames {
@@ -75,14 +78,14 @@ func toSocketCAN(s *socketcan.RawInterface, io4edgeCANClient *canl2.Client) {
 					//fmt.Printf(" send errorframe to sc %v\n", f.errorFrame)
 					err := s.SendErrorFrame(f.errorFrame)
 					if err != nil {
-						log.Fatalf("Error writing error frame to CAN socket: %v", err)
+						fmt.Printf("Error writing error frame to CAN socket: %v", err)
 					}
 				}
 				if f.haveNormalFrame {
 					//fmt.Printf(" send to sc %s\n", f.normalFrame.String())
 					err := s.Send(f.normalFrame)
 					if err != nil {
-						log.Fatalf("Error writing to CAN socket: %v", err)
+						fmt.Printf("Error writing to CAN socket: %v", err)
 					}
 				}
 			}
@@ -114,6 +117,7 @@ func io4EdgeSampleTosocketCANFrame(sample *fspb.Sample) *canFrameCombined {
 		f.haveNormalFrame = true
 		f.normalFrame = &socketcan.CANFrame{
 			ID:       sample.Frame.MessageId,
+			DLC:      uint8(len(sample.Frame.Data)),
 			Data:     sample.Frame.Data,
 			Extended: sample.Frame.ExtendedFrameFormat,
 			RTR:      sample.Frame.RemoteFrame,
@@ -121,6 +125,7 @@ func io4EdgeSampleTosocketCANFrame(sample *fspb.Sample) *canFrameCombined {
 	}
 	// convert error events
 	if sample.Error != fspb.ErrorEvent_CAN_NO_ERROR {
+		fmt.Printf("Got Error Event %v\n", sample.Error)
 		f.haveErrorFrame = true
 		f.errorFrame = &socketcan.CANErrorFrame{}
 		switch sample.Error {
@@ -143,6 +148,7 @@ func busStateChangeToSocketCANErrorFrame(oldState fspb.ControllerState, newState
 		return nil
 	}
 	if newState == fspb.ControllerState_CAN_BUS_OFF {
+		fmt.Printf("GOT BUS OFF\n")
 		return &canFrameCombined{
 			haveErrorFrame: true,
 			errorFrame: &socketcan.CANErrorFrame{
@@ -151,6 +157,7 @@ func busStateChangeToSocketCANErrorFrame(oldState fspb.ControllerState, newState
 		}
 	}
 	if newState == fspb.ControllerState_CAN_ERROR_PASSIVE {
+		fmt.Printf("GOT ERROR PASSIVE\n")
 		return &canFrameCombined{
 			haveErrorFrame: true,
 			errorFrame: &socketcan.CANErrorFrame{
