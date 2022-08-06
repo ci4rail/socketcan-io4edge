@@ -41,6 +41,7 @@ var (
 	mu          sync.Mutex                     // protects daemonMap
 	daemonMap   = make(map[string]*daemonInfo) // key: vcan name
 	programPath string
+	verbose     bool
 )
 
 func main() {
@@ -52,8 +53,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	logLevel := flag.String("loglevel", "info", "loglevel (debug, info, warn, error)")
+	logLevel := flag.String("loglevel", "info", "io4edge-client-go loglevel (debug, info, warn, error)")
 	showVersion := flag.Bool("version", false, "show version and exit")
+	verboseP := flag.Bool("v", false, "run socketcan-io4edge in verbose mode")
 	flag.Parse()
 	if *showVersion {
 		fmt.Printf("%s\n", version.Version)
@@ -62,7 +64,7 @@ func main() {
 	if flag.NArg() != 1 {
 		flag.Usage()
 	}
-
+	verbose = *verboseP
 	level, err := log.ParseLevel(*logLevel)
 
 	if err != nil {
@@ -155,7 +157,14 @@ func vcanName(instanceName string) string {
 }
 
 func (d *daemonInfo) startProcess(name string) {
-	runner, err := drunner.New(name, programPath, d.io4edgeInstanceName, name)
+	args := []string{}
+
+	if verbose {
+		args = append(args, "-v")
+	}
+	args = append(args, d.io4edgeInstanceName, name)
+
+	runner, err := drunner.New(name, programPath, args...)
 	if err != nil {
 		logErr("%s: start %s failed: %v\n", name, programPath, err)
 	}

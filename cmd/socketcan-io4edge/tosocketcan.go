@@ -51,9 +51,11 @@ func toSocketCAN(s *socketcan.RawInterface, io4edgeCANClient *canl2.Client) {
 				fmt.Printf("Io4Edge ReadStream failed: %v\n", err)
 				os.Exit(1)
 			}
-			frames := sd.FSData.Samples
-			verbosePrint("Got %d samples from io4edge device\n", len(frames))
-			for _, f := range frames {
+			samples := sd.FSData.Samples
+			if len(samples) > 0 {
+				verbosePrint("Got %d samples from io4edge device\n", len(samples))
+			}
+			for _, f := range samples {
 				if f.ControllerState != busState {
 					// generate socket CAN error frame in case of bus state changes to BUS_OFF or ERROR_PASSIVE
 					scF := busStateChangeToSocketCANErrorFrame(busState, f.ControllerState)
