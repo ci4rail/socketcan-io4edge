@@ -12,7 +12,7 @@ $ socketcan-io4edge MIO04-1-can vcan0
 
 ## Tool socketcan-io4edge-runner
 
-Watches the network for io4edge CAN devices and automatically starts `socketcan-io4edge` processes to connect them with a virtual socket CAN network with a matching name, if one exists.
+Watches the network for io4edge CAN devices and automatically starts `socketcan-io4edge` processes to connect them with a virtual socket CAN network with a matching name, if one exists. It also watches the virtual can link instances for state changes and reacts accordingly (starts and stops `socketcan-io4edge` processes when link changes up/down).
 
 This program is typically started as a systemd-service.
 
