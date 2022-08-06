@@ -20,84 +20,28 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
+	"sync"
 
 	log "github.com/sirupsen/logrus"
 
 	"github.com/ci4rail/io4edge-client-go/client"
 	"github.com/ci4rail/socketcan-io4edge/internal/version"
 	"github.com/ci4rail/socketcan-io4edge/pkg/drunner"
+	"github.com/vishvananda/netlink"
 )
 
 type daemonInfo struct {
-	runner *drunner.Runner
-	ipPort string
+	runner              *drunner.Runner
+	io4edgeInstanceName string
+	ipPort              string
 }
 
 var (
+	mu          sync.Mutex                     // protects daemonMap
 	daemonMap   = make(map[string]*daemonInfo) // key: vcan name
 	programPath string
 )
-
-func serviceAdded(s client.ServiceInfo) error {
-	var info *daemonInfo
-
-	fmt.Printf("%s: service added info received from mdns\n", s.GetInstanceName())
-
-	name := vcanName(s.GetInstanceName())
-	ipPort := s.GetIPAddressPort()
-
-	info, ok := daemonMap[name]
-	if ok {
-		// instance already exists, check if ip or port changed
-		if info.ipPort == ipPort {
-			fmt.Printf("%s: no change in ip/port (nothing to do)\n", name)
-			return nil
-		}
-		// ip or port changed, kill old instance and start new one
-		fmt.Printf("%s: ip/port changed, %s->%s stop old instance\n", name, info.ipPort, ipPort)
-		info.runner.Stop()
-	} else {
-		// instance does not exist. start new instance
-		info = &daemonInfo{}
-		info.ipPort = ipPort
-
-		err := createSocketCanDevice(name)
-		if err != nil {
-			logErr("%s: %v\n", name, err)
-			return nil
-		}
-		fmt.Printf("start process for instance (%s)\n", name)
-		daemonMap[name] = info
-	}
-
-	runner, err := drunner.New(name, programPath, s.GetInstanceName(), name)
-
-	if err != nil {
-		logErr("%s: Start %s failed: %v\n", name, programPath, err)
-		delInfo(name)
-	}
-	info.runner = runner
-
-	return nil
-}
-
-func serviceRemoved(s client.ServiceInfo) error {
-	name := vcanName(s.GetInstanceName())
-	fmt.Printf("%s: service removed info received from mdns\n", s.GetInstanceName())
-
-	info, ok := daemonMap[name]
-	if ok {
-		fmt.Printf("%s: Stopping process\n", name)
-		info.runner.Stop()
-		delInfo(name)
-		deleteSocketCanDevice(name)
-	} else {
-		fmt.Printf("%s: instance not known! (ignoring)\n", name)
-	}
-	return nil
-}
 
 func main() {
 	var err error
@@ -135,27 +79,66 @@ func main() {
 			log.Fatalf("error: %v", err)
 		}
 	}
+	// watch for socketcan link status changes
+	go netlinkMonitor()
+	// watch for mdns service changes
 	client.ServiceObserver("_io4edge_canL2._tcp", serviceAdded, serviceRemoved)
 }
 
-func createSocketCanDevice(socketCANInstance string) error {
-	cmd := fmt.Sprintf("ip link add dev %s type vcan && ip link set up %s", socketCANInstance, socketCANInstance)
-	//fmt.Println(cmd)
-	out, err := exec.Command("sh", "-c", cmd).CombinedOutput()
-	if err != nil {
-		if !strings.Contains(string(out), "File exists") {
-			return fmt.Errorf("error creating socketcan instance: %v: %s", err, out)
+func serviceAdded(s client.ServiceInfo) error {
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	var daemon *daemonInfo
+	fmt.Printf("%s: service added info received from mdns\n", s.GetInstanceName())
+
+	name := vcanName(s.GetInstanceName())
+	ipPort := s.GetIPAddressPort()
+
+	daemon, ok := daemonMap[name]
+	if !ok {
+		// instance does not exist.
+		daemon = &daemonInfo{}
+		daemon.ipPort = ipPort
+		daemon.io4edgeInstanceName = s.GetInstanceName()
+		daemonMap[name] = daemon
+	} else {
+		// instance already exists, check if ip or port changed
+		if daemon.ipPort == ipPort {
+			fmt.Printf("%s: no change in ip/port (nothing to do)\n", name)
+			return nil
+		}
+		// ip or port changed, kill old instance and start new one
+		daemon.ipPort = ipPort
+		if daemon.runner != nil {
+			fmt.Printf("%s: ip/port changed, %s->%s stop old instance\n", name, daemon.ipPort, ipPort)
+			daemon.runner.Stop()
 		}
 	}
+
+	if socketCANIsUp(name) {
+		daemon.startProcess(name)
+	} else {
+		fmt.Printf("%s: socketcan link is down, don't start process\n", name)
+	}
+
 	return nil
 }
 
-func deleteSocketCanDevice(socketCANInstance string) error {
-	cmd := fmt.Sprintf("ip link delete %s", socketCANInstance)
-	//fmt.Println(cmd)
-	out, err := exec.Command("sh", "-c", cmd).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("error deleting socketcan instance: %v: %s", err, out)
+func serviceRemoved(s client.ServiceInfo) error {
+	mu.Lock()
+	defer mu.Unlock()
+
+	name := vcanName(s.GetInstanceName())
+	fmt.Printf("%s: service removed info received from mdns\n", s.GetInstanceName())
+
+	daemon, ok := daemonMap[name]
+	if ok {
+		daemon.stopProcess(name)
+		delDaemon(name)
+	} else {
+		fmt.Printf("%s: instance not known! (ignoring)\n", name)
 	}
 	return nil
 }
@@ -164,17 +147,67 @@ func vcanName(instanceName string) string {
 	// remove "can" from instance name
 	instanceName = strings.Replace(instanceName, "-can", "", 1)
 
-	if len(instanceName) > 10 {
-		instanceName = instanceName[0:3] + ".." + instanceName[len(instanceName)-5:]
+	if len(instanceName) > 11 {
+		instanceName = instanceName[0:4] + "xx" + instanceName[len(instanceName)-5:]
 	}
 
-	return "vcan-" + instanceName
+	return "vcan" + instanceName
+}
+
+func (d *daemonInfo) startProcess(name string) {
+	runner, err := drunner.New(name, programPath, d.io4edgeInstanceName, name)
+	if err != nil {
+		logErr("%s: start %s failed: %v\n", name, programPath, err)
+	}
+	d.runner = runner
+}
+
+func (d *daemonInfo) stopProcess(name string) {
+	if d.runner != nil {
+		fmt.Printf("%s: stopping process\n", name)
+		d.runner.Stop()
+		d.runner = nil
+	}
 }
 
 func logErr(format string, arg ...any) {
 	fmt.Fprintf(os.Stderr, format, arg...)
 }
 
-func delInfo(name string) {
+func delDaemon(name string) {
 	delete(daemonMap, name)
+}
+
+func socketCANIsUp(name string) bool {
+	l, err := netlink.LinkByName(name)
+	if err != nil {
+		return false
+	}
+	// cant't check for link up, because vcan is never up, but either unknown or down
+	return l.Attrs().OperState != netlink.OperDown
+}
+
+func netlinkMonitor() {
+	ch := make(chan netlink.LinkUpdate)
+	if err := netlink.LinkSubscribe(ch, nil); err != nil {
+		fmt.Printf("netlink.LinkSubscribe failed: %v\n", err)
+		os.Exit(1)
+	}
+	for update := range ch {
+		name := update.Link.Attrs().Name
+		down := update.Link.Attrs().OperState == netlink.OperDown
+
+		fmt.Printf("%s: update from netlinkMonitor operstate %v\n", name, update.Link.Attrs().OperState)
+
+		mu.Lock()
+		daemon, ok := daemonMap[name]
+		if ok {
+			if !down {
+				daemon.startProcess(name)
+			} else {
+				daemon.stopProcess(name)
+			}
+		}
+		mu.Unlock()
+	}
 }
