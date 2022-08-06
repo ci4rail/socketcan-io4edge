@@ -25,7 +25,7 @@ func fromSocketCAN(s *socketcan.RawInterface, io4edgeCANClient *canl2.Client) {
 				fmt.Printf("Error reading from socketcan: %v\n", err)
 				os.Exit(1)
 			}
-			fmt.Printf("received %s\n", f.String())
+			verbosePrint("received %s\n", f.String())
 			frameQ <- f
 		}
 	}()
@@ -40,7 +40,7 @@ func fromSocketCAN(s *socketcan.RawInterface, io4edgeCANClient *canl2.Client) {
 			for _, f := range rxFrames {
 				io4eFrames = append(io4eFrames, socketCANToIo4EdgeFrame(f))
 			}
-			fmt.Printf("Sending %d frames to io4edge device\n", len(io4eFrames))
+			verbosePrint("Sending %d frames to io4edge device\n", len(io4eFrames))
 
 			// try to send frames. Ignore errors if the device is not ready, i.e. because is bus off or queue is full
 			err := io4edgeCANClient.SendFrames(io4eFrames)

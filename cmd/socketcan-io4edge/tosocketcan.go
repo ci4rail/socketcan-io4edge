@@ -52,6 +52,7 @@ func toSocketCAN(s *socketcan.RawInterface, io4edgeCANClient *canl2.Client) {
 				os.Exit(1)
 			}
 			frames := sd.FSData.Samples
+			verbosePrint("Got %d samples from io4edge device\n", len(frames))
 			for _, f := range frames {
 				if f.ControllerState != busState {
 					// generate socket CAN error frame in case of bus state changes to BUS_OFF or ERROR_PASSIVE
@@ -125,7 +126,7 @@ func io4EdgeSampleTosocketCANFrame(sample *fspb.Sample) *canFrameCombined {
 	}
 	// convert error events
 	if sample.Error != fspb.ErrorEvent_CAN_NO_ERROR {
-		fmt.Printf("Got Error Event %v\n", sample.Error)
+		verbosePrint("Got Error Event %v\n", sample.Error)
 		f.haveErrorFrame = true
 		f.errorFrame = &socketcan.CANErrorFrame{}
 		switch sample.Error {

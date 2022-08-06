@@ -13,6 +13,8 @@ import (
 	"github.com/ci4rail/socketcan-io4edge/pkg/socketcan"
 )
 
+var verbose bool
+
 func main() {
 	flag.Usage = func() {
 		fmt.Printf("Usage: %s [OPTIONS] <io4edge-device-address> <socketcan-instance-name>\n", os.Args[0])
@@ -20,11 +22,13 @@ func main() {
 		os.Exit(1)
 	}
 	showVersion := flag.Bool("version", false, "show version and exit")
+	verboseP := flag.Bool("v", false, "verbose")
 	flag.Parse()
 	if *showVersion {
 		fmt.Printf("%s\n", version.Version)
 		os.Exit(0)
 	}
+	verbose = *verboseP
 
 	if flag.NArg() != 2 {
 		flag.Usage()
@@ -60,4 +64,10 @@ func waitForSignal() {
 	sig := <-sigs
 	fmt.Println()
 	fmt.Println(sig)
+}
+
+func verbosePrint(format string, arg ...any) {
+	if verbose {
+		fmt.Printf(format, arg...)
+	}
 }
