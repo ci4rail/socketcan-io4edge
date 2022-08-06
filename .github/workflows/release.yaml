@@ -12,8 +12,8 @@ jobs:
         goos: [linux]
         goarch: ["386", amd64, arm, arm64]
         cmd_path:
-          - cmd/socketcan-io4edge
-          - cmd/socketcan-io4edge-runner
+          - socketcan-io4edge
+          - socketcan-io4edge-runner
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -26,4 +26,5 @@ jobs:
           goos: ${{ matrix.goos }}
           goarch: ${{ matrix.goarch }}
           goversion: "https://go.dev/dl/go1.18.4.linux-amd64.tar.gz"
-          project_path: "./${{ matrix.cmd_path }}"
+          project_path: "./cmd/${{ matrix.cmd_path }}"
+          binary_name: "${{ matrix.cmd_path }}"
