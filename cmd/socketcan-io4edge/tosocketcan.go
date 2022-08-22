@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	bucketSamples     = 1
+	bucketSamples     = 30
 	bufferedSamples   = 400
 	streamKeepAliveMs = 1000
 )
@@ -37,7 +37,8 @@ func toSocketCAN(s *socketcan.RawInterface, io4edgeCANClient *canl2.Client) {
 			canl2.WithFBStreamOption(functionblock.WithBucketSamples(bucketSamples)),
 			canl2.WithFBStreamOption(functionblock.WithBufferedSamples(bufferedSamples)),
 			canl2.WithFBStreamOption(functionblock.WithKeepaliveInterval(streamKeepAliveMs)),
-		)
+			canl2.WithFBStreamOption(functionblock.WithLowLatencyMode(true)))
+
 		if err != nil {
 			fmt.Printf("StartStream failed: %v\n", err)
 			os.Exit(1)
