@@ -3,7 +3,7 @@ module github.com/ci4rail/socketcan-io4edge
 go 1.18
 
 require (
-	github.com/ci4rail/io4edge_api v0.11.0
+	github.com/ci4rail/io4edge_api v0.14.0
 	github.com/sirupsen/logrus v1.9.0
 	github.com/stretchr/testify v1.8.0
 	github.com/vishvananda/netlink v1.1.0
