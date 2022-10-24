@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/ci4rail/io4edge_api v0.11.0
 	github.com/sirupsen/logrus v1.9.0
-	github.com/stretchr/testify v1.8.0
+	github.com/stretchr/testify v1.8.1
 	github.com/vishvananda/netlink v1.1.0
 	golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8
 )
