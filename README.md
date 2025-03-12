@@ -25,6 +25,29 @@ E.g. if the io4edge CAN instance name is `MIO04-1-can`, the virtual Socket CAN d
 
 ### Typical usage
 
+#### Create a socketCAN instance
+
+To access a io4edge device via socketCAN, we create a virtual socketCAN network that matches the service name of the io4edge CAN Interface.
+
+The virtual socket CAN network must be named according to io4edge CAN Interface service name. E.g. if the service name is MYDEV-can, the virtual socketCAN device must be named vcanMYDEV (without -can). Because network interface names can have only max. 15 characters, but service names can be longer, there is a rule to map longer service names to socketCAN device names:
+
+vcan`<first-4-chars-of-service-name>`xx`<last-5-chars-of-service-name>`
+
+Examples:
+
+* Service Name S101-IOU04-USB-EXT-1-can -> vcan name vcanS101xxEXT-1
+* Service Name 123456789012-can -> vcan name vcan1234xx89012
+* Service Name MIO04-1-can -> vcan name vcanMIO04-1
+
+To create a virtual socketCAN network enter:
+
+```
+ip link add dev vcanMIO04-1 type vcan
+ip link set up vcanMIO04-1
+```
+
+#### socketcan-io4edge usage
+
 Assuming you have an io4edge CAN device with instance name `MYDEV-can`.
 
 In a first shell:
